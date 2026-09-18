@@ -1,0 +1,211 @@
+I'll explore the entire project systematically to give you a comprehensive understanding. Let me start by examining the project structure and key files.
+→Read . 
++ Thought: 294ms
+→Read aria_lab 
++ Thought: 473ms
+→Read aria_lab\README.md 
+→Read aria_lab\SETUP.md 
+→Read aria_lab\ALLOCATION_ENGINE_PLAN.md 
+→Read aria_lab\Dockerfile 
+→Read aria_lab\azure-containerapp.yaml 
+→Read aria_lab\deploy-vars.ps1 
+→Read aria_lab\deploy.ps1 
+→Read aria_lab\deploy.sh 
+→Read aria_lab\start.sh 
+→Read aria_lab\usecase.py 
+→Read aria_lab\package.ps1 
+→Read aria_lab\.gitignore 
+→Read aria_lab\.dockerignore 
+→Read aria_lab\backend 
+→Read aria_lab\frontend 
++ Thought: 343ms
+Now let me dive deeper into the backend and frontend source code.
+→Read aria_lab\backend\app 
+→Read aria_lab\frontend\src 
+→Read aria_lab\backend\requirements.txt 
+→Read aria_lab\frontend\package.json 
+→Read aria_lab\frontend\vite.config.ts 
+→Read aria_lab\frontend\vite.config.prod.ts 
+→Read aria_lab\frontend\index.html 
+→Read aria_lab\backend\data 
+→Read aria_lab\backend\customerDetail.csv 
++ Thought: 557ms
+Now let me explore all backend Python source files and frontend components:
+→Read aria_lab\backend\app\main.py 
+→Read aria_lab\backend\app\voice_live_client.py 
+→Read aria_lab\backend\app\tools.py 
+→Read aria_lab\backend\app\session_manager.py 
+→Read aria_lab\backend\app\auth.py 
+→Read aria_lab\backend\app\portfolio.py 
+→Read aria_lab\backend\app\profiles.py 
+→Read aria_lab\backend\app\allocation_engine.py 
+→Read aria_lab\backend\app\feasibility.py 
+→Read aria_lab\backend\app\audio_utils.py 
+→Read aria_lab\backend\app\conversation_log.py 
+→Read aria_lab\backend\app\__init__.py 
++ Thought: 40ms
+Now let me explore the frontend source files:
+→Read aria_lab\frontend\src\main.tsx 
+→Read aria_lab\frontend\src\Auth.tsx 
+→Read aria_lab\frontend\src\env.d.ts 
+→Read aria_lab\frontend\src\aria 
+→Read aria_lab\frontend\src\portfolio 
+→Read aria_lab\frontend\src\shell 
++ Thought: 503ms
+→Read aria_lab\frontend\src\shell\Shell.tsx 
+→Read aria_lab\frontend\src\shell\ModeChooser.tsx 
+→Read aria_lab\frontend\src\aria\App.tsx 
+→Read aria_lab\frontend\src\portfolio\PortfolioApp.jsx 
+→Read aria_lab\frontend\src\portfolio\screens 
+→Read aria_lab\frontend\src\portfolio\hooks 
++ Thought: 829ms
+Now I have a comprehensive understanding of the entire project. Let me compile everything into a clear explanation.
+ARIA AI — Complete Project Deep-Dive
+1. What Is This Project?
+Aria AI is a Cognizant Portfolio Advisory & Rebalancing Solution — an AI-powered investment advisor that talks to users through a live voice avatar. It's a full-stack application that:
+1. Authenticates users (email/password)
+2. Conducts a 13-question voice interview to build a financial profile
+3. Deterministically computes an investment allocation (Equities / Debt / Commodities)
+4. Checks feasibility (can the user's monthly investment fund their goals?)
+5. Presents a live avatar (Azure's "Lisa") speaking the recommendations
+6. Saves the portfolio and shows it on a dashboard with rebalancing tools
+2. Architecture Overview
+┌──────────────────────────────────────────────────────────────────┐
+│                        MONOLITH CONTAINER                        │
+│                                                                  │
+│  ┌──────────────┐      ┌──────────────────────────────────────┐ │
+│  │   Frontend    │─────▶│           Backend (FastAPI)          │ │
+│  │  React + Vite │ WS   │                                      │ │
+│  │  (TypeScript) │◀─────│  /sessions  /ws/sessions/{id}       │ │
+│  └──────────────┘      │  /auth/*    /api/*                   │ │
+│                         │  /avatar-offer  /ice-servers         │ │
+│                         └──────────┬───────────────────────────┘ │
+│                                    │                             │
+└────────────────────────────────────┼─────────────────────────────┘
+                                     │
+                    ┌────────────────┼────────────────┐
+                    ▼                ▼                 ▼
+           Azure Voice Live    Azure OpenAI      Business Services
+           (GPT-4 Realtime)    (Chat GPT-4o)     (Logic Apps, AI Search)
+           Avatar: Lisa         Portfolio AI      E-Commerce APIs
+Key design: It's a single Docker container running both frontend and backend. In dev, Vite proxies to FastAPI. In production, FastAPI serves the built React SPA as static files.
+3. Technology Stack
+Layer	Technology	Purpose
+Frontend	React 18 + TypeScript + Vite	SPA with voice controls, avatar video, portfolio dashboard
+Backend	Python FastAPI + Uvicorn (ASGI)	Async API server, WebSocket proxy, tool execution
+AI (Voice)	Azure Voice Live API → GPT-4 Realtime	Real-time voice conversation with avatar
+AI (Chat)	Azure OpenAI GPT-4o	Portfolio instrument recommendations, composition
+Avatar	Azure Voice Live Avatar ("Lisa")	Live video avatar via WebRTC
+Auth	SQLite (in-memory DB)	Email/password login (MVP, plaintext passwords)
+Storage	CSV files (customerDetail.csv, customers.csv, portfolio_state.csv)	Persistent user data, portfolios, allocations
+Deployment	Docker + Azure Container Apps + ACR	Containerized production deployment
+4. The Complete User Flow
+Phase 0: Login
+1. User opens http://localhost:5173 (dev) or the Container App URL (prod)
+2. main.tsx checks localStorage for aria_user — if missing, shows Auth.tsx
+3. User registers or logs in via /auth/register or /auth/login (SQLite-backed)
+4. Predefined demo profiles: ava.thompson@cognizant.com, marcus.reed@cognizant.com, sofia.martinez@cognizant.com (seeded with password welcome123)
+5. On login, email is stored in localStorage; Shell.tsx loads the Aria app
+Phase 1: Session Creation
+1. App.tsx (aria) mounts → immediately calls POST /sessions with X-User-Email header
+2. Backend session_manager.py creates a VoiceLiveSession object
+3. VoiceLiveSession.__init__():
+- Checks if the email matches a predefined profile (profiles.py)
+- If yes → builds a KNOWN USER CONTEXT block (skips identity questions)
+- Pre-seeds answers (dependents, debt, emergency fund, risk signals)
+4. session.connect() → opens a WebSocket to Azure Voice Live API
+5. Sends session.update with the full config: modalities, tools, avatar config, VAD settings, voice
+6. Returns session_id to frontend
+Phase 2: WebSocket Bridge
+1. Frontend opens ws://localhost:8001/ws/sessions/{id}
+2. Backend creates an event emitter task that forwards Azure events to the browser
+3. Frontend receives session_ready → session is live
+Phase 3: Voice Interview (13 Questions)
+The conversation follows a strict script defined in SYSTEM_INSTRUCTIONS inside voice_live_client.py:
+Questions flow:
+- Q01: Full name → Q02: Age → Q03: Country (skipped for predefined users)
+- Q04: Knowledge level (beginner/intermediate/advanced)
+- Q05: Dependents → Q06: High-interest debt → Q07: Debt details
+- Q08: Emergency fund → Q09: Monthly income → Q09b: Monthly expenses
+- TOOL CALL: recordAnswers (CALL POINT A) — returns pre-computed surplus, suggested investment, 10x/6.5x figures
+- Q10: Investable amount (proposed, not asked)
+- Q12: Risk scenario (emotional + financial capacity derived from one question)
+- Q13: Involvement preference
+- TOOL CALL: recordAnswers (CALL POINT B) — saves remaining fields
+- TOOL CALL: computeAndSaveProfile — computes risk_appetite via 3x3 matrix with age adjustment, builds flags, saves profile
+Phase 4: Portfolio Allocation
+- Q: "What are your financial goals?" → Goals, timelines, target amounts
+- TOOL CALL: computeAllocation — the deterministic engine:
+1. Maps Aria's 5 risk bands to 3 anchor portfolios (Conservative/Moderate/Aggressive)
+2. Builds a 7-bucket US allocation (Large Cap, Small Cap, REITs, Gold, Bond, Treasury, Cash)
+3. Applies goal tilts, horizon glide path, floor, normalize
+4. Rolls up to 3 classes: Equities / Debt / Commodities
+5. Clamps Commodities to ~10%, applies interests/avoids
+6. Computes blended expected return + feasibility check (multi-goal)
+- Aria presents the exact 3 percentages + feasibility verdict
+- User can negotiate (Phase 9): "I want more gold" → re-calls computeAllocation with hints
+Phase 5: Save & Dashboard
+- TOOL CALL: savePortfolio — writes to customerDetail.csv + creates dashboard customer record
+- Backend links the portfolio to the user's email in SQLite
+- User can view portfolio on the dashboard (currently disabled in Shell — only Aria mode active)
+5. Backend File Breakdown
+File	Purpose
+main.py	FastAPI app, routes, SPA fallback, session lifecycle
+voice_live_client.py	Core: Azure Voice Live WebSocket client, system prompt, session stages, avatar SDP negotiation
+session_manager.py	Creates/tracks VoiceLiveSession instances per browser client
+tools.py	4 tool functions: recordAnswers, computeAndSaveProfile, computeAllocation, savePortfolio
+allocation_engine.py	Deterministic allocation: 7-bucket → 3-class rollup, risk bands, goal tilts, glide path
+feasibility.py	SIP/FV math: assess_feasibility, assess_goals (multi-goal), required return/monthly
+auth.py	Email/password registration + login, SQLite DB, welcome email via SMTP
+portfolio.py	Dashboard data layer: customers, asset data, LLM-backed composition, Azure OpenAI chat proxy, news, prices
+profiles.py	3 predefined investor profiles (Ava, Marcus, Sofia) with pre-seeded answers
+audio_utils.py	Float32 ↔ PCM16 audio conversion for the Voice Live WebSocket
+conversation_log.py	JSONL transcript logging for every session turn
+6. Frontend File Breakdown
+File	Purpose
+main.tsx	Entry point: auth gate, localStorage session persistence
+Auth.tsx	Login/register form, calls /auth/* endpoints
+Shell.tsx	Lazy-loads the Aria app after login
+aria/App.tsx	The main app: WebSocket, microphone, avatar WebRTC, transcript display, allocation tab, feasibility view
+portfolio/PortfolioApp.jsx	Portfolio dashboard (dashboard, rebalancer, asset detail, review, holdings screens)
+portfolio/screens/*.jsx	Dashboard, Rebalancer, AssetDetail, Review, HoldingsManager screens
+portfolio/hooks/*.js	useClaudeAI (chat), useCustomerPolling, useMarketNews
+styles.css	Global styles
+7. Key Communication Flows
+Audio Flow (User → AI → User)
+Browser mic → AudioContext → downsample to 24kHz → base64
+  → WebSocket → FastAPI → WebSocket → Azure Voice Live → GPT-4 Realtime
+  → Response audio delta → FastAPI → WebSocket → Browser AudioContext playback
+Avatar Video Flow (direct WebRTC, bypasses backend)
+Browser creates RTCPeerConnection → generates SDP offer
+  → POST /avatar-offer → FastAPI encodes SDP as base64 JSON → sends to Azure
+  → Azure returns SDP answer → FastAPI decodes → returns to browser
+  → WebRTC handshake → Azure streams avatar video+audio directly to browser
+Function Call Flow
+GPT-4 decides to call a tool → Azure Voice Live sends function_call event
+  → FastAPI receives it → executes the tool (e.g., computeAllocation)
+  → Returns result → FastAPI sends function_call_output back to Azure
+  → GPT-4 incorporates result into its spoken response
+8. Deterministic Allocation Engine
+This is the core innovation — the LLM doesn't invent percentages. Instead:
+1. 3 anchor portfolios (from real US return/vol data in asset_stats.json):
+- Conservative: 18% Large Cap, 4% Small Cap, 6% REITs, 10% Gold, 32% Bond, 15% Treasury, 15% Cash
+- Moderate: 38/12/8/8/22/8/4
+- Aggressive: 50/22/10/6/8/4/0
+2. Aria's 5 risk bands are interpolations of these 3 anchors
+3. Pipeline: base → goal tilt → horizon glide → floor → normalize → rollup to 3 classes → Commodities clamp ~10% → normalize to 100
+4. Feasibility: Multi-goal assessment checks if ONE monthly contribution can fund ALL goals at once
+9. Deployment
+- Dockerfile: Multi-stage build (Node.js for frontend → Python for backend)
+- deploy.ps1: Builds ACR image, provisions Azure Files volume (persists SQLite DB), sets env vars/secrets
+- Azure Container Apps: Single container, port 8000, auto-scaling, health checks at /health
+10. Data Storage
+Data	Storage	Location
+User accounts	SQLite	aria_auth.db (mounted volume in prod)
+Portfolio links	SQLite	Same DB, portfolio_links table
+Customer profiles + portfolios	CSV	customerDetail.csv (root)
+Dashboard customers	CSV	data/customers.csv (seed)
+Portfolio state (rebalances)	JSONL	data/portfolio_state.csv
+Asset returns/composition	CSV	data/asset_returns.csv, data/asset_composition.csv
+Asset stats (engine)	JSON	data/asset_stats.json
+Conversation transcripts	JSONL	conversation_log.jsonl
