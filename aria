@@ -449,3 +449,35 @@ What the CODE Does (No LLM Involved — Pure Deterministic Logic)
 The Split in One Sentence
 The LLM asks questions and explains answers. The code computes everything: risk, allocation, feasibility, projections. The numbers the LLM speaks are always the numbers the code computed — never invented.
 This is the core architectural decision that makes Aria's outputs trustworthy. The LLM is a conversational interface to deterministic financial logic, not the source of financial advice itself.
+
+
+
+
+
+
+
+
+What This Project Does
+Aria is a voice-powered AI financial advisor. You talk to it through a live avatar (like a video call), it asks you about your money goals, risk comfort, and income — then gives you a personalized investment plan.
+What the Non-LLM Code Does
+Part	What It Does
+Risk Calculator	Takes your risk answers (1-10 scale) → spits out a risk label like "moderate" or "aggressive"
+Allocation Engine	Takes your risk label + goals → picks exact percentages for Equities/Debt/Commodities using real market data
+Feasibility Check	Takes your goals + monthly budget → tells you if it's realistic, stretch, or impossible
+Projections	Calculates what your money grows to over 1, 3, 5, 10 years
+Auth & Storage	Login, save profiles, save portfolios — basic database stuff
+In short: The LLM talks to you. The code does the math.
+APIs We're Using
+API	What It's For
+Azure Voice Live API	Real-time voice conversation + live avatar video (WebRTC)
+Azure OpenAI (GPT-4o)	Backend reasoning — understands answers, picks tools, explains results
+Azure Container Apps	Hosts the app (Docker container)
+Azure Container Registry	Stores the Docker image
+Azure Files	Persistent storage for the database
+One Sentence Summary
+You talk to Aria via avatar → it asks financial questions → the code crunches numbers → Aria explains the plan back to you.
+▣  Build · MiMo V2.5 Free · 5.1s
+why docker???
++ Thought: 627ms
+To package the entire backend + frontend into one container so it runs the same everywhere — on your laptop, on Azure, doesn't matter. No "works on my machine" problems.
+Azure Container Apps requires Docker to deploy. That's the main reason.
